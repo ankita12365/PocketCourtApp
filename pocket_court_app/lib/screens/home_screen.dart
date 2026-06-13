@@ -1,0 +1,200 @@
+import 'package:flutter/material.dart';
+import '../models/category_model.dart';
+import '../services/api_service.dart';
+import '../theme/app_theme.dart';
+import '../widgets/app_transitions.dart';
+import '../widgets/error_view.dart';
+import 'situation_list_screen.dart';
+
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  late Future<List<CategoryModel>> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = ApiService.getCategories();
+  }
+
+  IconData _icon(String cat) {
+    switch (cat.toLowerCase()) {
+      case 'traffic rules':
+        return Icons.traffic_rounded;
+      case 'consumer rights':
+        return Icons.shopping_bag_rounded;
+      case 'criminal':
+        return Icons.gavel_rounded;
+      case 'family':
+        return Icons.family_restroom_rounded;
+      case 'labour rights':
+        return Icons.work_rounded;
+      case 'cyber crime':
+        return Icons.security_rounded;
+      case 'women safety':
+        return Icons.shield_rounded;
+      case 'public rights':
+        return Icons.people_rounded;
+      case 'tenant rights':
+        return Icons.home_rounded;
+      case 'environmental rights':
+        return Icons.eco_rounded;
+      case 'banking rights':
+        return Icons.account_balance_rounded;
+      case 'digital payments & upi safety':
+        return Icons.payment_rounded;
+      case 'road rage & public safety':
+        return Icons.car_crash_rounded;
+      case 'rental & property issues':
+        return Icons.house_rounded;
+      default:
+        return Icons.balance_rounded;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: RefreshIndicator(
+        onRefresh: () async =>
+            setState(() => _future = ApiService.getCategories()),
+        child: CustomScrollView(
+          slivers: [
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                child: Row(children: [
+                  const Icon(Icons.grid_view_rounded,
+                      size: 15, color: AppTheme.indigo),
+                  const SizedBox(width: 6),
+                  Text('Browse Categories',
+                      style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.grey.shade700)),
+                ]),
+              ),
+            ),
+            FutureBuilder<List<CategoryModel>>(
+              future: _future,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const SliverFillRemaining(
+                      child: Center(child: CircularProgressIndicator()));
+                }
+                if (snapshot.hasError) {
+                  return SliverFillRemaining(
+                    child: ErrorView(
+                      message: snapshot.error.toString(),
+                      onRetry: () =>
+                          setState(() => _future = ApiService.getCategories()),
+                    ),
+                  );
+                }
+                final cats = snapshot.data!;
+                return SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+                  sliver: SliverGrid(
+                    delegate: SliverChildBuilderDelegate(
+                      (context, i) {
+                        final gradient = AppTheme.categoryGradients[
+                            i % AppTheme.categoryGradients.length];
+                        return _CategoryCard(
+                          category: cats[i],
+                          gradient: gradient,
+                          icon: _icon(cats[i].category),
+                          onTap: () => Navigator.push(
+                              context,
+                              SlideUpRoute(
+                                page: SituationListScreen(
+                                    category: cats[i].category,
+                                    gradient: gradient),
+                              )),
+                        );
+                      },
+                      childCount: cats.length,
+                    ),
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      crossAxisSpacing: 12,
+                      mainAxisSpacing: 12,
+                      childAspectRatio: 1.3,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CategoryCard extends StatelessWidget {
+  final CategoryModel category;
+  final List<Color> gradient;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _CategoryCard(
+      {required this.category,
+      required this.gradient,
+      required this.icon,
+      required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+              colors: gradient,
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+                color: gradient.first.withValues(alpha: 0.35),
+                blurRadius: 10,
+                offset: const Offset(0, 4))
+          ],
+        ),
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          children: [
+            Icon(icon, color: Colors.white, size: 28),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(category.category,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          height: 1.3)),
+                  const SizedBox(height: 3),
+                  Text('${category.situations.length} situations',
+                      style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.75),
+                          fontSize: 10)),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
